@@ -1,0 +1,47 @@
+/* Hanzhang portal · print/PDF layout for class handouts and homework (US Letter, two columns). */
+@media print {
+  @page { size: letter; margin: 0.42in 0.48in 0.45in; }
+  html, body, main { background: #fff !important; }
+  body { font: 9.3pt/1.3 -apple-system, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif !important; color: #111 !important; }
+  main { max-width: none !important; padding: 0 !important; margin: 0 !important; }
+  .hz-bar, nav, button, .print, .hz-noprint { display: none !important; }
+  header { border-top: 2.4pt solid #25685e !important; padding: 4pt 0 0 !important; margin: 0 0 4pt !important; display: flex !important; align-items: baseline; justify-content: space-between; gap: 10pt; }
+  header .eyebrow { font-size: 6.8pt !important; letter-spacing: .7pt !important; order: 2; }
+  h1 { font-size: 15pt !important; line-height: 1.15 !important; margin: 0 !important; letter-spacing: 0 !important; }
+  .hz-print-name { display: block !important; font-size: 7.5pt; color: #444; margin: 0 0 4pt; }
+  section { columns: 2; column-gap: .26in; column-rule: .5pt solid #dfe7e3; margin: 6pt 0 0 !important; padding: 5pt 0 0 !important; border-top: .9pt solid #9fb8b0 !important; }
+  section > h2 { column-span: all; font-size: 11pt !important; line-height: 1.2 !important; margin: 0 0 4pt !important; break-after: avoid; }
+  h3 { font-size: 9.3pt !important; margin: 0 0 1pt !important; break-after: avoid; }
+  p { margin: 1.5pt 0 !important; }
+  ul, ol { margin: 1pt 0 !important; }
+  .knowledge { padding-left: 10pt !important; margin: 0 0 5pt !important; }
+  .knowledge > li { margin: 0 0 4pt !important; break-inside: avoid; }
+  .example { font: 9.4pt/1.28 Georgia, "Times New Roman", serif !important; margin: 1pt 0 !important; padding: 1pt 0 1pt 5pt !important; background: none !important; border-left: 1.4pt solid #b8cfca !important; }
+  .task { margin: 0 0 7pt !important; padding: 0 !important; border: 0 !important; break-inside: avoid; }
+  .instruction { font-size: 8.4pt !important; line-height: 1.25 !important; }
+  .predict { font-size: 8pt !important; padding: 1.5pt 4pt !important; margin: 2pt 0 !important; border-radius: 3pt !important; }
+  .passage, .source-excerpt { font: 9.6pt/1.33 Georgia, "Times New Roman", serif !important; margin: 2pt 0 !important; }
+  .gloss { font-size: 7.6pt !important; margin: 1pt 0 !important; }
+  .choices { padding-left: 15pt !important; margin: 2pt 0 0 !important; }
+  .choices li { margin: 0 0 1pt !important; padding-left: 2pt !important; }
+  .label { font-size: 7pt !important; margin: 0 !important; }
+  /* Writing space: two ruled lines after tasks without choices; none after multiple choice. */
+  .workspace { display: block !important; height: 26pt !important; margin: 2pt 0 0 !important; border: 0 !important; border-bottom: .6pt solid #9aa8a2 !important; position: relative; }
+  .workspace::before { content: ""; position: absolute; left: 0; right: 0; top: 11pt; border-bottom: .6pt solid #9aa8a2; }
+  .task:has(.choices) .workspace, .task:has(.blank-choices) .workspace { display: none !important; }
+  .big-workspace { display: block !important; height: 66pt !important; margin: 3pt 0 0 !important; border: 0 !important; border-radius: 0 !important; background: repeating-linear-gradient(to bottom, transparent 0 15.4pt, #9aa8a2 15.4pt 16pt) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Default-closed content stays hidden; vocabulary entries print the word and part of speech with a line to write the meaning. */
+  body:not(.teacher) details.word { display: block !important; margin: 0 0 3pt !important; padding: 0 !important; border: 0 !important; background: none !important; break-inside: avoid; }
+  body:not(.teacher) details.word > :not(summary) { display: none !important; }
+  details.word > summary { display: flex !important; align-items: baseline; gap: 4pt; font-size: 9.6pt; color: #111 !important; margin: 0 !important; list-style: none; }
+  details.word > summary::-webkit-details-marker { display: none; }
+  details.word > summary::after { content: ""; flex: 1; border-bottom: .6pt solid #9aa8a2; transform: translateY(-2pt); }
+  .blank-choices { margin: 2pt 0 !important; }
+  .blank-choices li { margin: 0 0 1pt !important; }
+  table { font-size: 8.3pt !important; margin: 4pt 0 !important; break-inside: avoid; }
+  th, td { padding: 3pt 4pt !important; }
+  .chart .example { font-size: 8.6pt !important; border-left: 0 !important; padding: 0 !important; }
+  .recall { padding: 2pt 8pt !important; margin: 4pt 0 !important; break-inside: avoid; border-radius: 3pt !important; }
+  .recall li { margin: 1pt 0 !important; }
+  #review, section.hz-single, section:not(:has(.knowledge, .task ~ .task, details.word)) { columns: 1; }
+}
