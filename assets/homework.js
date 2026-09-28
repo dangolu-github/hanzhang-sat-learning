@@ -1,5 +1,5 @@
 // Online answering on a homework page: choices and short written answers, autosave, one submission,
-// automatic checking of multiple-choice items (results shown only when Lucy has checking switched on).
+// automatic checking of multiple-choice items (results shown only when your teacher has checking switched on).
 (() => {
   const hw = window.HZ_HOMEWORK;
   if (!hw || !hw.assignmentId) return;
@@ -149,7 +149,7 @@
         else if (data.submission) throw new Error('This homework was already submitted.');
         else await sleep(2000);
       }
-      if (!submission) throw new Error('Lucy has not received your answers yet. Please press Submit again.');
+      if (!submission) throw new Error('Your teacher has not received your answers yet. Please press Submit again.');
       state.submitted = submission;
       showSubmitted(submission);
       if (window.HanzhangHandIn) window.HanzhangHandIn.refresh();
@@ -171,7 +171,7 @@
     const stamp = isNaN(when) ? '' : when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     if (!submission.result) {
       setStatus(`Submitted ${stamp}`);
-      if (resultEl) resultEl.innerHTML = '<p><b>Submitted.</b> Lucy will check your answers. 已提交，老师会批改。</p>';
+      if (resultEl) resultEl.innerHTML = '<p><b>Submitted.</b> Your teacher will check your answers. 已提交，老师会批改。</p>';
       return;
     }
     const result = submission.result;
@@ -192,12 +192,12 @@
       } else {
         const mark = document.createElement('p');
         mark.className = 'hw-mark';
-        mark.textContent = 'Lucy will check this answer. 老师批改。';
+        mark.textContent = 'Your teacher will check this answer. 老师批改。';
         (item.querySelector('.hw-text') || item.lastElementChild).insertAdjacentElement('afterend', mark);
       }
     });
     if (resultEl) {
-      const open = result.openCount ? ` ${result.openCount} written answer${result.openCount === 1 ? '' : 's'} will be checked by Lucy.` : '';
+      const open = result.openCount ? ` ${result.openCount} written answer${result.openCount === 1 ? '' : 's'} will be checked by your teacher.` : '';
       resultEl.innerHTML = `<p><b>${result.score} / ${result.autoTotal}</b> multiple-choice answers correct.${esc(open)} Wrong answers are marked above. 错题已标出。</p>`;
     }
   }
