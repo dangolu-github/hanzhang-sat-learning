@@ -35,7 +35,7 @@
       <ul class="hz-status" aria-live="polite"><li class="hz-note">Checking what you have handed in…</li></ul>
       <div class="hz-options">
         <details class="hz-option" data-option="online"${here ? ' open' : ''}>
-          <summary><span class="n">1</span><span>Answer online <small>网页作答 · 选择题自动批改，文字题老师批改</small></span></summary>
+          <summary><span class="n">1</span><span>Answer online <small>网页作答</small></span></summary>
           <div class="hz-option-body">${onlineBody}</div>
         </details>
         <details class="hz-option" data-option="upload">
@@ -165,7 +165,7 @@
       input.value = '';
       panel.querySelector('.hz-files').innerHTML = '';
       panel.querySelector('[data-note=upload]').value = '';
-      message(panel, 'upload', `Uploaded ${received} file${received === 1 ? '' : 's'}. Your teacher will check your work. 上传成功。`, 'success');
+      message(panel, 'upload', `Uploaded ${received} file${received === 1 ? '' : 's'}. 上传成功。`, 'success');
       refreshAll();
     } catch (error) {
       message(panel, 'upload', (error && error.message) || 'The upload did not finish. Please try again.', 'error');
@@ -194,7 +194,7 @@
       }
       if (!found) throw new Error('Your teacher did not get the message yet. Please press the button again.');
       panel.querySelector('[data-note=wechat]').value = '';
-      message(panel, 'wechat', 'Done. Your teacher will check the photos you sent on WeChat. 已通知老师。', 'success');
+      message(panel, 'wechat', 'Done. 已记录微信提交。', 'success');
     } catch (error) {
       message(panel, 'wechat', (error && error.message) || 'Please try again.', 'error');
     } finally {
@@ -231,8 +231,8 @@
     (status.uploads || []).forEach((batch) => rows.push(`<li><span class="hz-pill good">Uploaded</span><span>${batch.files} file${batch.files === 1 ? '' : 's'} · ${esc(when(batch.at))}</span></li>`));
     (status.wechat || []).forEach((event) => rows.push(`<li><span class="hz-pill good">Sent on WeChat</span><span>${esc(when(event.at))}</span></li>`));
     if (!rows.length) rows.push('<li class="hz-note">Nothing handed in yet. 还没有提交。</li>');
-    else if (status.review === 'checked') rows.push(`<li><span class="hz-pill good">Checked by your teacher</span><span>${esc(when(status.reviewedAt))}</span></li>`);
-    else if (status.review === 'waiting') rows.push('<li><span class="hz-pill">Waiting for your teacher to check</span></li>');
+    else if (status.review === 'checked') rows.push(`<li><span class="hz-pill good">Reviewed 已批阅</span><span>${esc(when(status.reviewedAt))}</span></li>`);
+    else if (status.review === 'waiting') rows.push('<li><span class="hz-pill">Submitted 已提交</span></li>');
     if (status.receiving === false) rows.push('<li class="hz-note">Hand-in is closed for this homework. 本作业已停止提交。</li>');
     panel.querySelector('.hz-status').innerHTML = rows.join('');
     if (status.receiving === false) panel.querySelectorAll('[data-action]').forEach((button) => { button.disabled = true; });

@@ -171,7 +171,7 @@
     const stamp = isNaN(when) ? '' : when.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     if (!submission.result) {
       setStatus(`Submitted ${stamp}`);
-      if (resultEl) resultEl.innerHTML = '<p><b>Submitted.</b> Your teacher will check your answers. 已提交，老师会批改。</p>';
+      if (resultEl) resultEl.innerHTML = '<p><b>Submitted.</b> 已提交。</p>';
       return;
     }
     const result = submission.result;
@@ -192,13 +192,13 @@
       } else {
         const mark = document.createElement('p');
         mark.className = 'hw-mark';
-        mark.textContent = 'Your teacher will check this answer. 老师批改。';
+        mark.textContent = 'Answer received. 答案已收到。';
         (item.querySelector('.hw-text') || item.lastElementChild).insertAdjacentElement('afterend', mark);
       }
     });
     if (resultEl) {
-      const open = result.openCount ? ` ${result.openCount} written answer${result.openCount === 1 ? '' : 's'} will be checked by your teacher.` : '';
-      resultEl.innerHTML = `<p><b>${result.score} / ${result.autoTotal}</b> multiple-choice answers correct.${esc(open)} Wrong answers are marked above. 错题已标出。</p>`;
+      const open = result.openCount ? ` ${result.openCount} written answer${result.openCount === 1 ? '' : 's'} received.` : '';
+      resultEl.innerHTML = `<p><b>${result.score} / ${result.autoTotal}</b> correct.${esc(open)} Wrong answers are marked above. 错题已标出。</p>`;
     }
   }
 })();
