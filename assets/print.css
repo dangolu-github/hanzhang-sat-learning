@@ -24,6 +24,9 @@
   .gloss { font-size: 7.6pt !important; margin: 1pt 0 !important; }
   .choices { padding-left: 15pt !important; margin: 2pt 0 0 !important; }
   .choices li { margin: 0 0 1pt !important; padding-left: 2pt !important; }
+  .choices.choices-row { display: flex !important; flex-wrap: wrap !important; gap: 1pt 3% !important; padding-left: 0 !important; list-style-position: inside !important; }
+  .choices.choices-row li { margin: 0 !important; }
+  .choices.choices-row.choices-pair li { min-width: 47% !important; }
   .label { font-size: 7pt !important; margin: 0 !important; }
   /* Writing space: two ruled lines after tasks without choices; none after multiple choice. */
   .workspace { display: block !important; height: 26pt !important; margin: 2pt 0 0 !important; border: 0 !important; border-bottom: .6pt solid #9aa8a2 !important; position: relative; }
