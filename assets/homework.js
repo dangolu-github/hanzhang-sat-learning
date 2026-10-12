@@ -13,6 +13,14 @@
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const key = (name) => `hz-hw-${name}:${hw.assignmentId}:${state.resetVersion}`;
+  // Where and on which device the answers are submitted, for your teacher only (submission-origin.js); never
+  // holds up the submission. Drafts are not tagged.
+  const submissionOrigin = () => {
+    try {
+      const origin = window.PortalSubmissionOrigin;
+      return origin ? Promise.race([Promise.resolve(origin.collect()).catch(() => null), sleep(4500).then(() => null)]) : Promise.resolve(null);
+    } catch (error) { return Promise.resolve(null); }
+  };
 
   items.forEach(decorate);
   const bar = document.getElementById('answer-bar');
@@ -141,7 +149,7 @@
     setStatus('Submitting…');
     try {
       clearTimeout(state.timer);
-      await window.HanzhangAccess.post('submitOnline', { assignmentId: hw.assignmentId, saveId: state.saveId, resetVersion: state.resetVersion, submissionId, responses: state.responses });
+      await window.HanzhangAccess.post('submitOnline', { assignmentId: hw.assignmentId, saveId: state.saveId, resetVersion: state.resetVersion, submissionId, responses: state.responses, submissionOrigin: await submissionOrigin() });
       let submission = null;
       for (let attempt = 0; attempt < 10 && !submission; attempt += 1) {
         const data = await window.HanzhangAccess.request('getOnline', { assignmentId: hw.assignmentId, saveId: state.saveId });

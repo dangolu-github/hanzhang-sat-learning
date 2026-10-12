@@ -15,8 +15,17 @@
   };
   const size = (bytes) => bytes < 1024 * 1024 ? Math.max(1, Math.round(bytes / 1024)) + ' KB' : (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  // Where and on which device the hand-in is made, for your teacher only (submission-origin.js). Resolves to
+  // null when the script is missing or slow, so it never holds up or fails a hand-in.
+  const submissionOrigin = () => {
+    try {
+      const origin = window.PortalSubmissionOrigin;
+      return origin ? Promise.race([Promise.resolve(origin.collect()).catch(() => null), sleep(4500).then(() => null)]) : Promise.resolve(null);
+    } catch (error) { return Promise.resolve(null); }
+  };
 
   panels.forEach(render);
+  if (window.PortalSubmissionOrigin && window.HanzhangAccess) window.HanzhangAccess.ready.then(submissionOrigin);
   refreshAll();
   window.HanzhangHandIn = { refresh: refreshAll };
 
@@ -138,6 +147,7 @@
     const fill = bar.querySelector('i');
     const note = panel.querySelector('[data-note=upload]').value.trim();
     const batchId = newId('batch');
+    const origin = submissionOrigin();
     button.disabled = true;
     bar.hidden = false;
     fill.style.width = '0%';
@@ -149,7 +159,7 @@
         if (ready.blob.size > MAX_FILE_BYTES) throw new Error(`${files[i].name} is larger than 12 MB. Take the photo again at a smaller size.`);
         await window.HanzhangAccess.post('uploadFile', {
           assignmentId, batchId, fileId: newId('file'), index: i + 1, total: files.length,
-          name: ready.name, type: ready.type, size: ready.blob.size, note, data: await toBase64(ready.blob)
+          name: ready.name, type: ready.type, size: ready.blob.size, note, data: await toBase64(ready.blob), submissionOrigin: await origin
         });
         fill.style.width = Math.round(((i + 1) / files.length) * 90) + '%';
       }
@@ -183,7 +193,7 @@
     button.disabled = true;
     message(panel, 'wechat', 'Letting your teacher know…', '');
     try {
-      await window.HanzhangAccess.post('wechatHandIn', { assignmentId, eventId, note });
+      await window.HanzhangAccess.post('wechatHandIn', { assignmentId, eventId, note, submissionOrigin: await submissionOrigin() });
       let found = false;
       for (let attempt = 0; attempt < 8 && !found; attempt += 1) {
         const data = await window.HanzhangAccess.request('getHandIn', { assignmentIds: assignmentId });
