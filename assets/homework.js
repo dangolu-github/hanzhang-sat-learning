@@ -129,7 +129,7 @@
         state.responses = data.submission.responses || state.responses;
       }
       paintResponses();
-      if (state.submitted) { showSubmitted(state.submitted); watchFeedback(); }
+      if (state.submitted) showSubmitted(state.submitted);
       else if (!state.receiving) { setStatus('Online answers are closed for this homework.'); if (submitButton) submitButton.disabled = true; }
       else setStatus(`${answeredCount()} / ${items.length} answered`);
     } catch (error) {
@@ -160,33 +160,11 @@
       if (!submission) throw new Error('Your teacher has not received your answers yet. Please press Submit again.');
       state.submitted = submission;
       showSubmitted(submission);
-      watchFeedback();
       if (window.HanzhangHandIn) window.HanzhangHandIn.refresh();
     } catch (error) {
       setStatus((error && error.message) || 'Submitting did not finish. Please try again.');
       submitButton.disabled = false;
     }
-  }
-
-  function watchFeedback() {
-    if (state.feedbackTimer) return;
-    const update = async () => {
-      if (document.hidden || !state.submitted || state.feedbackLoading) return;
-      state.feedbackLoading = true;
-      try {
-        const data = await window.HanzhangAccess.request('getOnline', { assignmentId: hw.assignmentId, saveId: state.saveId });
-        if (data.submission && data.submission.submissionId === state.submitted.submissionId && JSON.stringify(data.submission.result) !== JSON.stringify(state.submitted.result)) {
-          state.submitted = data.submission;
-          showSubmitted(state.submitted);
-        }
-      } catch (error) { /* keep the last received result; next poll retries */ }
-      finally { state.feedbackLoading = false; }
-    };
-    state.feedbackTimer = setInterval(update, 60000);
-    const button = document.createElement('button');
-    button.type = 'button'; button.textContent = 'View latest feedback';
-    button.addEventListener('click', update);
-    if (bar) bar.appendChild(button);
   }
 
   function showSubmitted(submission) {
@@ -235,12 +213,7 @@
     });
     if (resultEl) {
       const open = result.openCount ? ` ${result.openCount} written answer${result.openCount === 1 ? '' : 's'} received.` : '';
-      resultEl.innerHTML = result.feedbackHtml || `<p><b>${result.score}/${total} (${percentage}%)</b> correct.${esc(open)} Wrong answers are marked above. 错题已标出。</p>`;
-      resultEl.querySelectorAll('details[id]').forEach((detail) => {
-        const storageKey = 'hz-feedback:' + hw.assignmentId + ':' + detail.id;
-        detail.open = read(storageKey) === 'open';
-        detail.addEventListener('toggle', () => write(storageKey, detail.open ? 'open' : 'closed'));
-      });
+      resultEl.innerHTML = `<p><b>${result.score}/${total} (${percentage}%)</b> correct.${esc(open)} Wrong answers are marked above. 错题已标出。</p>`;
     }
   }
 })();
