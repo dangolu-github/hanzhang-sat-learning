@@ -42,9 +42,15 @@
   .blank-choices { margin: 2pt 0 !important; }
   .blank-choices li { margin: 0 0 1pt !important; }
   table { font-size: 8.3pt !important; margin: 4pt 0 !important; break-inside: avoid; }
-  th, td { padding: 3pt 4pt !important; }
+  /* Whole words in table cells: `anywhere` (handout styles) lets a narrow column split a word letter by letter. */
+  th, td { padding: 3pt 4pt !important; overflow-wrap: break-word !important; word-break: normal !important; }
   .chart .example { font-size: 8.6pt !important; border-left: 0 !important; padding: 0 !important; }
   .recall { padding: 2pt 8pt !important; margin: 4pt 0 !important; break-inside: avoid; border-radius: 3pt !important; }
   .recall li { margin: 1pt 0 !important; }
   #review, section.hz-single, section:not(:has(.knowledge, .task ~ .task, details.word)) { columns: 1; }
+}
+/* The same table wrapping on wide screens; phones (640px and below) keep the handout's `anywhere`.
+   Only pages with this print layout load the file, so annotated slices (fixed-width ink stage) are not reflowed. */
+@media screen and (min-width: 641px) {
+  th, td { overflow-wrap: break-word; word-break: normal; }
 }
