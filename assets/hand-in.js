@@ -9,6 +9,65 @@
 
   const esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const newId = (prefix) => prefix + '-' + (window.crypto && crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Date.now().toString(16) + Math.random().toString(16).slice(2));
+
+  // Pressing Upload again after a failed or half-finished upload has to be the *same* hand-in, not a new
+  // one: the same batch ID and the same ID for every page in it. Then the course reuses the files it
+  // already saved and the pages that did arrive are not saved a second time. The identity is kept until
+  // the whole batch is confirmed received - a page that arrived does not release it while a later page in
+  // the same batch is still failing - and choosing a different set of files starts a new hand-in.
+  const PENDING = 'hz-pending-upload-v1';
+  // The identity is kept in two places, and both matter. Browser storage carries it across a reload. This
+  // page's own memory carries it when the browser refuses storage at all (private mode, storage full): on
+  // its own, a refused write would mean every press of Upload got a new batch and new page IDs, which is
+  // the duplicate this whole thing exists to prevent. Storage is read first and memory is the fallback.
+  // What memory cannot do is survive a reload - with storage unavailable, a reload genuinely loses the
+  // identity and the next upload is a new hand-in. That limit is the browser's, and it does not weaken a
+  // same-page retry, which is the case that matters here.
+  const memory = new Map();
+  const fromMemory = () => { const out = {}; memory.forEach((value, key) => { out[key] = value; }); return out; };
+  const readPending = () => {
+    let stored = {};
+    try {
+      const raw = window.localStorage.getItem(PENDING);
+      if (raw) stored = JSON.parse(raw) || {};
+    } catch (error) { /* storage unavailable: this page's memory is the whole answer */ }
+    // Memory wins where both hold the same hand-in. Storage can be readable and still be out of date -
+    // a browser that answers reads but refuses writes (full, or private mode) would otherwise hand back
+    // the state from before this page's uploads, and every press would start another hand-in.
+    return Object.assign(stored, fromMemory());
+  };
+  const writePending = (all) => {
+    memory.clear();
+    Object.keys(all).forEach((key) => { memory.set(key, all[key]); });
+    try { window.localStorage.setItem(PENDING, JSON.stringify(all)); }
+    catch (error) { /* storage unavailable: the memory copy above carries this page's retries */ }
+  };
+  const fileSlot = (file) => `${file.name}|${file.size}|${file.lastModified || 0}|${file.type || ''}`;
+  // The chosen set of files, in order: the same choice is the same hand-in, a different choice is not.
+  const batchSlot = (assignmentId, files) => `${assignmentId}::${files.map(fileSlot).join('>>')}`;
+  // A retry must send the same bytes, or the course refuses the page's ID as a different file. Phone photos
+  // are re-encoded before sending, so prepared pages of an unfinished batch are kept for this page's life.
+  const prepared = new Map();
+
+  function pendingBatch(assignmentId, files) {
+    const slot = batchSlot(assignmentId, files);
+    const all = readPending();
+    const held = all[slot] && all[slot].batchId ? all[slot] : null;
+    const entry = held || { batchId: newId('batch'), files: {} };
+    all[slot] = entry;
+    writePending(all);
+    return {
+      slot,
+      batchId: entry.batchId,
+      fileId(file) {
+        const key = fileSlot(file);
+        if (!entry.files[key]) { entry.files[key] = newId('file'); all[slot] = entry; writePending(all); }
+        return entry.files[key];
+      },
+      // Only once every page of the batch is confirmed received.
+      done() { const current = readPending(); delete current[slot]; writePending(current); }
+    };
+  }
   const when = (value) => {
     const d = new Date(value);
     return isNaN(d) ? '' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -146,7 +205,8 @@
     const bar = panel.querySelector('.hz-progress');
     const fill = bar.querySelector('i');
     const note = panel.querySelector('[data-note=upload]').value.trim();
-    const batchId = newId('batch');
+    const batch = pendingBatch(assignmentId, files);
+    const batchId = batch.batchId;
     const origin = submissionOrigin();
     button.disabled = true;
     bar.hidden = false;
@@ -155,10 +215,12 @@
       await window.HanzhangAccess.ensureFreshAccess(false);
       for (let i = 0; i < files.length; i += 1) {
         message(panel, 'upload', `Sending ${i + 1} of ${files.length}… Keep this page open. 正在上传，请不要关闭页面。`, '');
-        const ready = await prepare(files[i]);
+        const slot = fileSlot(files[i]);
+        const ready = prepared.get(slot) || await prepare(files[i]);
+        prepared.set(slot, ready);
         if (ready.blob.size > MAX_FILE_BYTES) throw new Error(`${files[i].name} is larger than 12 MB. Take the photo again at a smaller size.`);
         await window.HanzhangAccess.post('uploadFile', {
-          assignmentId, batchId, fileId: newId('file'), index: i + 1, total: files.length,
+          assignmentId, batchId, fileId: batch.fileId(files[i]), index: i + 1, total: files.length,
           name: ready.name, type: ready.type, size: ready.blob.size, note, data: await toBase64(ready.blob), submissionOrigin: await origin
         });
         fill.style.width = Math.round(((i + 1) / files.length) * 90) + '%';
@@ -170,7 +232,13 @@
         received = Number(status.received || 0);
         if (received < files.length) await sleep(2500);
       }
-      if (received < files.length) throw new Error(`Only ${received} of ${files.length} files arrived. Please upload the missing pages again.`);
+      // Not confirmed yet: the batch and its page IDs are deliberately kept, so pressing Upload again
+      // finishes this same hand-in instead of starting a second one.
+      if (received < files.length) throw new Error(`Only ${received} of ${files.length} files arrived. Please press Upload again to finish this hand-in.`);
+      // Every page of this batch is in. Only now is the identity released; choosing files again after this
+      // is a new hand-in.
+      batch.done();
+      files.forEach((file) => prepared.delete(fileSlot(file)));
       fill.style.width = '100%';
       input.value = '';
       panel.querySelector('.hz-files').innerHTML = '';
