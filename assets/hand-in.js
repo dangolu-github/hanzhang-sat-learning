@@ -42,6 +42,24 @@
     try { window.localStorage.setItem(PENDING, JSON.stringify(all)); }
     catch (error) { /* storage unavailable: the memory copy above carries this page's retries */ }
   };
+  // Memory carries a same-page retry, but it cannot carry a reload, and an upload that starts with no
+  // durable identity is exactly the one that comes back as a second hand-in of the same pages: the page
+  // closes, nothing was written down, and the next choice gets a new batch and new page IDs. So before a
+  // page is sent, its ID has to be readable back out of browser storage itself - never out of memory,
+  // which would answer for storage and hide the very fault this guards. An ID that is already stored is
+  // enough even if a later write fails: that ID is the hand-in, and it is never given up for a new one.
+  const storedPending = () => {
+    try {
+      const raw = window.localStorage.getItem(PENDING);
+      return (raw && JSON.parse(raw)) || {};
+    } catch (error) { return null; }
+  };
+  const durable = (slot, batchId, key, id) => {
+    const stored = storedPending();
+    const held = stored && stored[slot];
+    return Boolean(held && held.batchId === batchId && held.files && held.files[key] === id);
+  };
+  const STORAGE_OFF = 'This browser is not saving data for this page, so no new copy of this file was sent. Please allow this site to save data, keep this page open, then press Upload again with the same files. 浏览器没有保存本页数据，这个文件本次未上传。请允许本站保存数据，保持页面打开，再用同样的文件重新上传。';
   const fileSlot = (file) => `${file.name}|${file.size}|${file.lastModified || 0}|${file.type || ''}`;
   // The chosen set of files, in order: the same choice is the same hand-in, a different choice is not.
   const batchSlot = (assignmentId, files) => `${assignmentId}::${files.map(fileSlot).join('>>')}`;
@@ -59,9 +77,15 @@
     return {
       slot,
       batchId: entry.batchId,
+      // Called inside upload()'s try, before the page is posted, so a browser that will not keep the
+      // identity stops this one page with the usual message and nothing is sent.
       fileId(file) {
         const key = fileSlot(file);
-        if (!entry.files[key]) { entry.files[key] = newId('file'); all[slot] = entry; writePending(all); }
+        if (!entry.files[key]) entry.files[key] = newId('file');
+        // Written down again on every attempt: a page whose first write was refused is recorded as soon as
+        // the browser allows it, and what gets recorded is the ID this page has been holding all along.
+        if (!durable(slot, entry.batchId, key, entry.files[key])) { all[slot] = entry; writePending(all); }
+        if (!durable(slot, entry.batchId, key, entry.files[key])) throw new Error(STORAGE_OFF);
         return entry.files[key];
       },
       // Only once every page of the batch is confirmed received.
