@@ -42,6 +42,25 @@ html,body{margin:0!important;min-width:0!important;padding:0!important}
 .ann-tools{position:sticky;top:0;z-index:100;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:9px 14px;background:#fff;font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",Arial,sans-serif;color:#27463d}
 .ann-tools b{margin-right:auto}.ann-tools button{font:inherit;padding:6px 10px;border:1px solid #c7d4cf;border-radius:6px;background:#f7faf8;color:#245d53;cursor:pointer}
 #ann-scroll{overflow-x:auto}#ann-stage{position:relative}#ann-page{position:relative;transform-origin:0 0;display:flow-root}
+/* ann-viewer:readable-default-20261104: the paper stays at its authored size and the viewer, not the window, is the box
+   that scrolls. Screen only; no print rule, colour, id or [ hidden ] state is touched. */
+@media screen{
+.ann-tools{flex:0 0 auto;max-height:60vh;overflow:auto}
+#ann-scroll{flex:1 1 auto;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
+body{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+/* Some teacher pages carry their notes as a top-level section after the viewer. That section is
+   page content, not viewer chrome: it must keep normal flow and wrap, instead of competing with
+   the viewer for the window height (which left the viewer 0px tall in a short window). The
+   viewer then takes a bounded height of its own rather than the whole window. */
+body:has(> section.teacher){display:block;height:auto;overflow:visible}
+body:has(> section.teacher) #ann-scroll{height:65vh;height:65dvh;min-height:180px;max-width:100%}
+body:has(> section.teacher) > section.teacher{min-width:0;max-width:100%;overflow-wrap:anywhere;overflow-x:auto;box-sizing:border-box}
+/* Private editable fork: PaperAnnotationClient draws its layers outside this box and positions
+   them in document coordinates, so there the page keeps document scrolling and the viewer keeps
+   its content height; the layers then stay aligned with the paper. */
+html:has(#html-ink-editor-v2) body{display:block;height:auto;overflow:visible}
+html:has(#html-ink-editor-v2) #ann-scroll{height:auto;min-height:0}
+}
 #class-annotations{position:absolute;left:0;top:0;pointer-events:none;z-index:20}.saved-annotation{position:absolute;box-sizing:border-box}
 #ann-page.annotations-hidden #class-annotations{visibility:hidden!important}
 #ann-page.annotations-hidden web-highlight{background-color:transparent!important}
@@ -49,7 +68,7 @@ html,body{margin:0!important;min-width:0!important;padding:0!important}
 #ann-page input,#ann-page textarea,#ann-page select{pointer-events:none}
 @page{size:A4;margin:10mm}
 @media print{html,body{background:#fff!important}.ann-tools{display:none!important}#ann-scroll{overflow:visible}#ann-stage{width:var(--print-width)!important;height:auto!important;zoom:var(--print-scale);overflow:hidden}#ann-page{transform:translateX(calc(-1 * var(--print-left)))!important}#ann-page main{break-inside:auto}#ann-page a{color:inherit} }
-</style><meta name="robots" content="noindex,nofollow,noarchive"><link rel="stylesheet" href="../../assets/gate.css?v=20261002"><link rel="stylesheet" href="../../assets/material.css?v=20261002"><script src="../../assets/config.js?v=20261002"></script><script src="../../assets/gate.js?v=20261002" defer></script><style>.ann-tools{position:static!important}</style></head><body class="student"><div class="hz-bar"><a class="hz-bar-back" href="../">← Class 04</a><span class="hz-bar-title">Grammar · Verb Groups and Verb Forms · 课堂批注</span><a class="hz-bar-pdf" href="Class04_Verb_Groups_Annotated.pdf" download>Download PDF <small>下载打印</small></a></div><div class="ann-tools"><b>Verb Groups and Verb Forms · Unit 1</b><button id="ann-toggle" type="button" aria-controls="class-annotations" aria-pressed="true">隐藏批注</button><button id="ann-fit" type="button">Fit page</button><button id="ann-actual" type="button">100%</button><button id="ann-print" type="button">Save as PDF</button></div><div id="ann-scroll"><div id="ann-stage"><div id="ann-page" style="width:1746px"><main>
+</style><meta name="robots" content="noindex,nofollow,noarchive"><link rel="stylesheet" href="../../assets/gate.css?v=20261104-responsive"><link rel="stylesheet" href="../../assets/material.css?v=20261104-responsive"><script src="../../assets/config.js?v=20261002"></script><script src="../../assets/gate.js?v=20261002" defer></script><style>.ann-tools{position:static!important}</style></head><body class="student"><div class="hz-bar"><a class="hz-bar-back" href="../">← Class 04</a><span class="hz-bar-title">Grammar · Verb Groups and Verb Forms · 课堂批注</span><a class="hz-bar-pdf" href="Class04_Verb_Groups_Annotated.pdf" download>Download PDF <small>下载打印</small></a></div><div class="ann-tools"><b>Verb Groups and Verb Forms · Unit 1</b><button id="ann-toggle" type="button" aria-controls="class-annotations" aria-pressed="true">隐藏批注</button><button id="ann-fit" type="button">Fit page</button><button id="ann-actual" type="button">100%</button><button id="ann-print" type="button">Save as PDF</button></div><div id="ann-scroll"><div id="ann-stage"><div id="ann-page" style="width:1746px"><main>
 <header><button type="button">Print</button><div class="eyebrow">SAT Reading &amp; Writing · Hanzhang · Class 04 · October 18</div><h1>Verb Groups and Verb Forms</h1></header>
 <nav aria-label="Class handouts"><a>Warm-Up &amp; Writing</a><a aria-current="page">Grammar</a><a>Punctuation</a></nav>
 <section class="unit" id="unit1"><details class="section-toggle" open=""><summary><h2>Build a Complete Verb Group</h2></summary>
@@ -60,7 +79,7 @@ html,body{margin:0!important;min-width:0!important;padding:0!important}
 'use strict';
 var data=JSON.parse(document.getElementById('html-ink-data-v2').textContent),W=data.width;
 var page=document.getElementById('ann-page'),stage=document.getElementById('ann-stage'),layer=document.getElementById('class-annotations');
-var NS='http://www.w3.org/2000/svg',fit=true,initial=true;
+var NS='http://www.w3.org/2000/svg',fit=false,initial=true,scroll=document.getElementById('ann-scroll');
 function offset(el){var r=el.getBoundingClientRect(),p=page.getBoundingClientRect(),scale=p.width/page.offsetWidth||1;return{x:(r.left-p.left)/scale,y:(r.top-p.top)/scale};}
 function visible(el){return el && (el.offsetParent!==null || el===page);}
 function target(a){try{return page.querySelector(a.selector)}catch(e){return null}}
@@ -79,7 +98,7 @@ function repaint(){
   else{var n=document.createElement('div');n.className='saved-annotation';n.textContent=it.text;n.style.cssText='left:'+(it.x+dx)+'px;top:'+(it.y+dy)+'px;width:'+it.w+'px;min-height:'+it.h+'px;padding:27px 11px 14px;border:1px solid #d4b7a7;border-radius:9px;background:#fffdf3;color:'+(it.color||'#b42318')+';white-space:pre-wrap;font:17px/1.55 system-ui,"PingFang SC",sans-serif';layer.appendChild(n);}
  });initial=false;size();
 }
-function size(){var s=fit?Math.min(1,(document.documentElement.clientWidth||W)/W):1;page.style.transform='scale('+s+')';stage.style.width=(W*s)+'px';stage.style.height=(page.scrollHeight*s)+'px';}
+function size(){var s=fit?Math.min(1,((scroll&&scroll.clientWidth)||document.documentElement.clientWidth||W)/W):1;page.style.transform='scale('+s+')';stage.style.width=(W*s)+'px';stage.style.height=(page.scrollHeight*s)+'px';}
 function printBounds(){var main=page.querySelector('main'),o=offset(main),left=o.x,right=o.x+main.offsetWidth;
  (page.classList.contains('annotations-hidden')?[]:data.items).forEach(function(it){var e=target(it.anchor);if(!visible(e))return;var p=offset(e),dx=p.x-it.anchor.left;if(it.type==='stroke'){it.points.forEach(function(q){left=Math.min(left,q.x+dx);right=Math.max(right,q.x+dx)})}else{left=Math.min(left,it.x+dx);right=Math.max(right,it.x+dx+it.w)}});
  left=Math.max(0,left-16);right=Math.min(W,right+16);var width=right-left;stage.style.setProperty('--print-left',left+'px');stage.style.setProperty('--print-width',width+'px');stage.style.setProperty('--print-scale',Math.min(1,718/width));}
