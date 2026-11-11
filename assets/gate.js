@@ -1,11 +1,14 @@
-// Course access for Hanzhang's learner pages. The password is only checked, never stored:
-// the browser keeps an opaque trust credential and a short-lived access token.
+// Course access for Hanzhang's learner pages. The password is checked by the course service and never
+// stored here: the browser keeps an opaque trust credential and a short-lived access token.
+// Remembered sign-in (2026-11-11): the credential is sent with every request and accepted on its own when
+// the short token has gone, so the password is asked for once per browser. It is forgotten only when the
+// course says explicitly that this browser is unknown or was signed out; a connection problem keeps it and
+// offers to try again.
 (() => {
   const trustedBrowserKey = 'hz-sat-trusted-browser-v1';
   const deviceTokenKey = 'hz-sat-device-token-v1';
   const tokenKey = 'hz-sat-access-token';
   const expiryKey = 'hz-sat-access-expires-at';
-  const expectedHash = 'f051141f43e8ed543e8d088be2221cbe345492bcdcebd7b59983f69d99c72b5b';
   const config = window.HZ_PORTAL_CONFIG || {};
   let resolveReady;
   let renewal = null;
@@ -18,6 +21,16 @@
   const writeStorage = (storage, key, value) => {
     try { storage.setItem(key, value); return true; }
     catch { return false; }
+  };
+  const removeStorage = (storage, key) => {
+    try { storage.removeItem(key); } catch { /* nothing stored */ }
+  };
+  // Only an explicit answer from the course ends a remembered browser (the error carries `reason`).
+  const forgetBrowser = () => {
+    removeStorage(window.localStorage, deviceTokenKey);
+    removeStorage(window.localStorage, trustedBrowserKey);
+    removeStorage(window.sessionStorage, tokenKey);
+    removeStorage(window.sessionStorage, expiryKey);
   };
   const getToken = () => readStorage(window.sessionStorage, tokenKey);
   const getDeviceToken = () => readStorage(window.localStorage, deviceTokenKey);
@@ -40,12 +53,6 @@
     catch { return ''; }
   };
 
-  const digest = async (value) => {
-    const data = new TextEncoder().encode(value);
-    const hash = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
-  };
-
   // JSONP read: Apps Script web apps answer GET requests from any origin this way.
   const requestData = (action, parameters) => new Promise((resolve, reject) => {
     if (!config.endpoint) { reject(new Error('The course service is not connected yet.')); return; }
@@ -60,13 +67,21 @@
     document.head.appendChild(script);
   });
 
+  // A refusal from the course carries `reason` ('unknown' or 'revoked'); a request that never got an answer
+  // does not, and is never taken as a refusal.
   const requestAccess = async (action, parameters) => {
     const data = await requestData(action, parameters);
-    if (!data || !data.ok || !data.accessToken) throw new Error((data && data.error) || 'Access could not be confirmed.');
+    if (!data || !data.ok || !data.accessToken) {
+      const error = new Error((data && data.error) || 'Access could not be confirmed.');
+      if (data && (data.reason === 'unknown' || data.reason === 'revoked')) error.reason = data.reason;
+      throw error;
+    }
     return data;
   };
   const authorize = (code) => requestAccess('authorizeAccess', { code });
   const renewAccess = (deviceToken) => requestAccess('renewAccess', { deviceToken });
+  const OFFLINE = 'We could not reach your course. Check your connection and try again. 暂时无法连接，请检查网络后重试。';
+  const AGAIN = 'Please enter the course password again. Nothing you saved is lost. 请重新输入课程密码，已保存的内容不会丢失。';
 
   async function ensureFreshAccess(force) {
     if (renewal) return renewal;
@@ -76,26 +91,33 @@
     const device = getDeviceToken();
     if (!device) {
       showGate();
-      throw new Error('Please enter the course password again. Nothing you saved is lost.');
+      throw new Error(AGAIN);
     }
     renewal = renewAccess(device).then((access) => {
       setAccess(access.accessToken, device, access.expiresIn);
       reveal();
       resolveReady();
       return access.accessToken;
-    }).catch(() => {
-      showGate();
-      throw new Error('We could not reconnect. Check your connection and enter the course password again.');
+    }).catch((error) => {
+      if (error && error.reason) {
+        forgetBrowser();
+        showGate();
+        throw new Error(AGAIN);
+      }
+      // No answer: the remembered browser stays remembered. The old token still goes with the credential,
+      // which the course accepts on its own.
+      if (!force && token) return token;
+      throw new Error(OFFLINE);
     }).finally(() => { renewal = null; });
     return renewal;
   }
 
   async function request(action, parameters) {
     let token = await ensureFreshAccess(false);
-    let data = await requestData(action, Object.assign({}, parameters, { accessToken: token }));
+    let data = await requestData(action, Object.assign({}, parameters, { accessToken: token, deviceToken: getDeviceToken() }));
     if (data && !data.ok && /course access expired/i.test(data.error || '')) {
       token = await ensureFreshAccess(true);
-      data = await requestData(action, Object.assign({}, parameters, { accessToken: token }));
+      data = await requestData(action, Object.assign({}, parameters, { accessToken: token, deviceToken: getDeviceToken() }));
     }
     if (!data || !data.ok) throw new Error((data && data.error) || 'The request could not be confirmed. Please try again.');
     return data;
@@ -103,13 +125,15 @@
 
   // Write: the response is opaque (no-cors), so callers confirm the result with a JSONP read.
   async function post(action, payload) {
+    // The Edit annotations button needs the address of its page back, so that one is a read.
+    if (action === 'createPaperAnnotationLink') return request(action, payload);
     if (!config.endpoint) throw new Error('The course service is not connected yet.');
     const token = await ensureFreshAccess(false);
     const response = await fetch(config.endpoint, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(Object.assign({}, payload, { action, accessToken: token }))
+      body: JSON.stringify(Object.assign({}, payload, { action, accessToken: token, deviceToken: getDeviceToken() }))
     });
     if (response.type !== 'opaque' && !response.ok) throw new Error('The request could not be sent.');
     return true;
@@ -160,21 +184,18 @@
       const button = form.querySelector('button');
       button.disabled = true;
       button.textContent = 'Opening…';
-      const code = input.value.trim();
-      if (await digest(code) !== expectedHash) {
-        error.textContent = 'That password does not match. Please try again.';
-        input.select();
-        button.disabled = false;
-        button.textContent = 'Continue';
-        return;
-      }
       try {
-        const access = await authorize(code);
+        const access = await authorize(input.value.trim());
         setAccess(access.accessToken, access.deviceToken, access.expiresIn);
       } catch (accessError) {
-        error.textContent = 'We could not connect to your course. Check your connection and try again.';
+        const message = (accessError && accessError.message) || '';
+        const wrong = /incorrect course password/i.test(message);
+        error.textContent = wrong ? 'That password does not match. Please try again. 密码不正确，请重试。'
+          : /too many attempts/i.test(message) ? 'Too many tries. Please wait a few minutes and try again. 尝试次数过多，请几分钟后再试。'
+            : 'We could not connect to your course. Check your connection and try again. 暂时无法连接，请检查网络后重试。';
+        if (wrong) input.select();
         button.disabled = false;
-        button.textContent = 'Try again';
+        button.textContent = wrong ? 'Continue' : 'Try again';
         return;
       }
       reveal();
@@ -182,13 +203,44 @@
     });
   };
 
+  // A remembered browser that cannot reach the course right now is offered another try, never the
+  // password box: nothing is forgotten until the course itself says so.
+  const showRetry = (retry) => {
+    document.querySelector('.access-gate')?.remove();
+    document.body.dataset.access = 'locked';
+    document.body.classList.add('access-locked');
+    Array.from(document.body.children).forEach((node) => { node.inert = true; });
+    const gate = document.createElement('div');
+    gate.className = 'access-gate';
+    gate.setAttribute('role', 'dialog');
+    gate.setAttribute('aria-modal', 'true');
+    gate.setAttribute('aria-labelledby', 'access-title');
+    gate.innerHTML = `
+      <div class="access-card">
+        <p class="access-kicker">Hanzhang · SAT Reading &amp; Writing</p>
+        <h1 id="access-title">Welcome back</h1>
+        <p>${OFFLINE}</p>
+        <div class="access-row"><button type="button">Try again</button></div>
+      </div>`;
+    document.body.append(gate);
+    gate.inert = false;
+    document.documentElement.classList.remove('access-pending');
+    const button = gate.querySelector('button');
+    button.focus();
+    button.addEventListener('click', () => { button.disabled = true; button.textContent = 'Opening…'; retry(); });
+  };
+
   const trustedDevice = consumeTrustedDevice() || getDeviceToken();
   if (trustedDevice) {
-    renewAccess(trustedDevice).then((access) => {
+    const start = () => renewAccess(trustedDevice).then((access) => {
       setAccess(access.accessToken, trustedDevice, access.expiresIn);
       reveal();
       resolveReady();
-    }).catch(() => { showGate(); });
+    }).catch((error) => {
+      if (error && error.reason) { forgetBrowser(); document.querySelector('.access-gate')?.remove(); showGate(); return; }
+      showRetry(start);
+    });
+    start();
     return;
   }
   showGate();

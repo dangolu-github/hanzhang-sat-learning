@@ -334,7 +334,7 @@
     (status.wechat || []).forEach((event) => rows.push(`<li><span class="hz-pill good">Sent on WeChat</span><span>${esc(when(event.at))}</span></li>`));
     if (!rows.length) rows.push('<li class="hz-note">Nothing handed in yet. 还没有提交。</li>');
     else if (status.review === 'checked') rows.push(`<li><span class="hz-pill good">Reviewed 已批阅</span><span>${esc(when(status.reviewedAt))}</span></li>`);
-    else if (status.review === 'waiting') rows.push('<li><span class="hz-pill">Submitted 已提交</span></li>');
+    else if (status.review === 'waiting') rows.push('<li><span class="hz-pill">Waiting for your teacher to review 等待老师批改</span></li>');
     if (status.receiving === false) rows.push('<li class="hz-note">Hand-in is closed for this homework. 本作业已停止提交。</li>');
     panel.querySelector('.hz-status').innerHTML = rows.join('');
     if (status.receiving === false) panel.querySelectorAll('[data-action]').forEach((button) => { button.disabled = true; });

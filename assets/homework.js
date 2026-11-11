@@ -1,5 +1,6 @@
-// Online answering on a homework page: choices and short written answers, autosave, one submission,
-// automatic checking of multiple-choice items (results shown only when your teacher has checking switched on).
+// Online answering on a homework page: choices and short written answers, autosave, one submission.
+// After submitting, the page shows what the course returns: the checked questions with their marks, or that
+// the work is waiting for the teacher (written answers without a key, or until she releases the result).
 (() => {
   const hw = window.HZ_HOMEWORK;
   if (!hw || !hw.assignmentId) return;
@@ -181,7 +182,7 @@
     items.forEach((item) => item.querySelectorAll('.hw-choice').forEach((choice) => choice.classList.remove('is-key', 'is-miss')));
     if (!submission.result) {
       setStatus(`Submitted ${stamp}`);
-      if (resultEl) resultEl.innerHTML = '<p><b>Submitted.</b> 已提交。</p>';
+      if (resultEl) resultEl.innerHTML = '<p><b>Submitted. Waiting for your teacher to review.</b> 已提交，等待老师批改。</p>';
       return;
     }
     const result = submission.result;
@@ -207,13 +208,13 @@
         if (row.reviewed) {
           item.classList.add(row.isCorrect ? 'is-correct' : 'is-wrong');
           mark.innerHTML = (row.isCorrect ? '<b>✓ Correct</b>' : '<b>✗ Incorrect</b>') + ' · Correct answer: <b>' + esc(row.key) + '</b>' + (row.explanation ? '<br>' + esc(row.explanation).replace(/\n/g, '<br>') : '');
-        } else mark.textContent = 'Answer received. 答案已收到。';
+        } else mark.textContent = 'Waiting for your teacher to review. 等待老师批改。';
         (item.querySelector('.hw-text') || item.lastElementChild).insertAdjacentElement('afterend', mark);
       }
     });
     if (resultEl) {
-      const open = result.openCount ? ` ${result.openCount} written answer${result.openCount === 1 ? '' : 's'} received.` : '';
-      resultEl.innerHTML = `<p><b>${result.score}/${total} (${percentage}%)</b> correct.${esc(open)} Wrong answers are marked above. 错题已标出。</p>`;
+      const open = result.openCount ? ` ${result.openCount} written answer${result.openCount === 1 ? ' is' : 's are'} waiting for your teacher to review. 书面答案等待老师批改。` : '';
+      resultEl.innerHTML = `<p><b>${result.score}/${total} (${percentage}%)</b> correct. Wrong answers are marked above. 错题已标出。${esc(open)}</p>`;
     }
   }
 })();
